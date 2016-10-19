@@ -443,7 +443,7 @@ static kh_inline khint64_t __ac_Jenkins_hash64(khint64_t key)
 	key = key + (key << 31);
 	return key;
 }
-#define kh_int64_hash_func2(key) __ac_Jenkins_hash64((khint64_t)(key))
+#define kh_int64_hash_func2(key) (khint_t)__ac_Jenkins_hash64((khint64_t)(key))
 
 /* --- END OF HASH FUNCTIONS --- */
 
