@@ -53,6 +53,10 @@ int main() {
 	* Removed excessive trailing SPACEs and TABs. This leads to a large diff,
 	  unfortunately.
 
+	* Prevent unused function warnings reported by clang.
+
+	* Fixed a memory leak when realloc() fails.
+
 	* Added Bob Jenkins' 64-bit integer hash function.
 
   2013-05-02 (0.2.8):
