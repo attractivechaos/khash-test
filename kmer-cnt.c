@@ -5,9 +5,19 @@
 #include <unistd.h>
 #include <time.h>
 
-#include "khash.h"
-//KHASH_INIT(64, khint64_t, int, 1, kh_int64_hash_func2, kh_int64_hash_equal)
+#if KHASH_VER == 1
+#  include "khash-0.2.5.h"
+#elif KHASH_VER == 2
+#  include "khash-0.2.7.h"
+#else
+#  include "khash.h"
+#endif
+
+#if KHASH_VER == 0
+KHASH_INIT(64, khint64_t, int, 1, kh_int64_hash_func2, kh_int64_hash_equal)
+#else
 KHASH_MAP_INIT_INT64(64, int)
+#endif
 KHASH_MAP_INIT_STR(str, int)
 
 typedef struct {
