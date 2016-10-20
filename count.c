@@ -9,6 +9,15 @@
 KHASH_MAP_INIT_INT64(64, int)
 KHASH_MAP_INIT_STR(str, int)
 
+typedef struct {
+	char *s;
+	khint_t h;
+} cache_t;
+
+#define cache_eq(a, b) ((a).h == (b).h && strcmp((a).s, (b).s) == 0)
+#define cache_hash(a) ((a).h)
+KHASH_INIT(cache, cache_t, int, 1, cache_hash, cache_eq)
+
 long kgetline(char **buf, long *m_buf, FILE *fp)
 {
     long tot = 0, max = 0;
@@ -84,7 +93,7 @@ int count_64(const char *seq, int len, int k)
             x = (x << 2 | c) & mask;
             if (++l >= k) { // we find a k-mer
                 khint_t itr;
-                itr = kh_put(64, h, x, &absent); // only add one strand!
+                itr = kh_put(64, h, x, &absent);
                 if (absent) kh_val(h, itr) = 0;
                 ++kh_val(h, itr);
             }
@@ -93,6 +102,73 @@ int count_64(const char *seq, int len, int k)
 
 	size = kh_size(h);
 	kh_destroy(64, h);
+	return size;
+}
+
+int count_str(const char *seq, int len, int k)
+{
+	khash_t(str) *h;
+    int i, l, size;
+	khint_t itr;
+	char buf[64];
+	h = kh_init(str);
+	buf[k] = 0;
+    for (i = l = 0; i < len; ++i) {
+        int absent, c = seq[i];
+        if (c != 'N' && c != 'n') { // not an "N" base
+            if (++l >= k) { // we find a k-mer
+                khint_t itr;
+				strncpy(buf, &seq[i + 1 - k], k);
+                itr = kh_put(str, h, buf, &absent);
+                if (absent) {
+					kh_key(h, itr) = strdup(buf);
+					kh_val(h, itr) = 0;
+				}
+                ++kh_val(h, itr);
+            }
+        } else l = 0; // if there is an "N", restart
+    }
+
+	size = kh_size(h);
+	for (itr = 0; itr != kh_end(h); ++itr)
+		if (kh_exist(h, itr)) free((char*)kh_key(h, itr));
+	kh_destroy(str, h);
+	return size;
+}
+
+int count_cache(const char *seq, int len, int k)
+{
+	khash_t(cache) *h;
+    int i, l, size;
+	khint_t itr;
+	char buf[64];
+	cache_t cache;
+
+	h = kh_init(cache);
+	buf[k] = 0;
+	cache.s = buf;
+    for (i = l = 0; i < len; ++i) {
+        int absent, c = seq[i];
+        if (c != 'N' && c != 'n') { // not an "N" base
+            if (++l >= k) { // we find a k-mer
+                khint_t itr;
+				strncpy(cache.s, &seq[i + 1 - k], k);
+				cache.h = __ac_X31_hash_string(cache.s);
+                itr = kh_put(cache, h, cache, &absent);
+                if (absent) {
+					kh_key(h, itr).h = cache.h;
+					kh_key(h, itr).s = strdup(cache.s);
+					kh_val(h, itr) = 0;
+				}
+                ++kh_val(h, itr);
+            }
+        } else l = 0; // if there is an "N", restart
+    }
+
+	size = kh_size(h);
+	for (itr = 0; itr != kh_end(h); ++itr)
+		if (kh_exist(h, itr)) free(kh_key(h, itr).s);
+	kh_destroy(cache, h);
 	return size;
 }
 
@@ -110,8 +186,17 @@ int main(int argc, char *argv[])
 	if (argc >= 3) k = atoi(argv[2]);
 
 	seq = read_seq(argv[1], &len);
+
 	t = clock();
 	cnt = count_64(seq, len, k);
+	fprintf(stderr, "%d\t%.3f\n", cnt, (double)(clock() - t) / CLOCKS_PER_SEC);
+
+	t = clock();
+	cnt = count_str(seq, len, k);
+	fprintf(stderr, "%d\t%.3f\n", cnt, (double)(clock() - t) / CLOCKS_PER_SEC);
+
+	t = clock();
+	cnt = count_cache(seq, len, k);
 	fprintf(stderr, "%d\t%.3f\n", cnt, (double)(clock() - t) / CLOCKS_PER_SEC);
 
 	free(seq);
